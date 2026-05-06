@@ -37,6 +37,13 @@ ipcMain.on('update-pip-playback', (event, isPlaying, status) => {
     }
 });
 
+ipcMain.on('pip-toggle-playback', (event, isKeyDown) => {
+    // Forward playback toggle from PiP window to main window
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('pip-playback-toggle', isKeyDown);
+    }
+});
+
 function createMainWindow() {
     mainWindow = new BrowserWindow({
         width: 1400,

@@ -684,11 +684,14 @@
             }
         }
 
-        // Keyboard controls
+        // Keyboard controls - Spacebar and C key
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !e.repeat) {
+            if ((e.code === 'Space' || e.key.toLowerCase() === 'c') && !e.repeat) {
                 e.preventDefault();
-                state.spacebarPressed = true;
+
+                if (e.code === 'Space') {
+                    state.spacebarPressed = true;
+                }
 
                 if (!state.isPlaying) {
                     startPlayback();
@@ -701,9 +704,12 @@
         });
 
         document.addEventListener('keyup', (e) => {
-            if (e.code === 'Space') {
+            if (e.code === 'Space' || e.key.toLowerCase() === 'c') {
                 e.preventDefault();
-                state.spacebarPressed = false;
+
+                if (e.code === 'Space') {
+                    state.spacebarPressed = false;
+                }
 
                 if (state.speedMultiplier === 2) {
                     state.speedMultiplier = 1;
@@ -713,6 +719,29 @@
                 }
             }
         });
+
+        // Listen for playback toggle from PiP window (Electron only)
+        if (window.electronAPI && window.electronAPI.onPiPPlaybackToggle) {
+            window.electronAPI.onPiPPlaybackToggle((isKeyDown) => {
+                if (isKeyDown) {
+                    // Key pressed in PiP window
+                    if (!state.isPlaying) {
+                        startPlayback();
+                    } else {
+                        state.speedMultiplier = 2;
+                        updatePlaybackUI();
+                    }
+                } else {
+                    // Key released in PiP window
+                    if (state.speedMultiplier === 2) {
+                        state.speedMultiplier = 1;
+                        updatePlaybackUI();
+                    } else {
+                        stopPlayback();
+                    }
+                }
+            });
+        }
 
         // Manual scroll detection
         let scrollTimeout;
