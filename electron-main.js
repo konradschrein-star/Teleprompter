@@ -80,9 +80,6 @@ function createMainWindow() {
 
     mainWindow.loadFile('index.html');
 
-    // Open DevTools for debugging
-    mainWindow.webContents.openDevTools();
-
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
