@@ -621,10 +621,21 @@
             if (state.isPlaying) {
                 elements.playbackIndicator.classList.add('playing');
                 const speedText = state.speedMultiplier === 2 ? '2x' : '1x';
-                elements.playbackStatus.textContent = `Playing (${speedText})`;
+                const statusText = `Playing (${speedText})`;
+                elements.playbackStatus.textContent = statusText;
+
+                // Update Electron PiP
+                if (state.pipWindow && state.pipWindow.electron && window.electronAPI) {
+                    window.electronAPI.updatePiPPlayback(true, statusText);
+                }
             } else {
                 elements.playbackIndicator.classList.remove('playing');
                 elements.playbackStatus.textContent = 'Paused';
+
+                // Update Electron PiP
+                if (state.pipWindow && state.pipWindow.electron && window.electronAPI) {
+                    window.electronAPI.updatePiPPlayback(false, 'Paused');
+                }
             }
         }
 
@@ -634,9 +645,15 @@
                 elements.teleprompterDisplay.scrollTop += scrollAmount;
 
                 if (state.pipWindow) {
-                    const pipContent = state.pipWindow.document.querySelector('.pip-window-body');
-                    if (pipContent) {
-                        pipContent.scrollTop = elements.teleprompterDisplay.scrollTop;
+                    if (state.pipWindow.electron && window.electronAPI) {
+                        // Electron PiP
+                        window.electronAPI.updatePiPScroll(elements.teleprompterDisplay.scrollTop);
+                    } else {
+                        // Browser PiP
+                        const pipContent = state.pipWindow.document.querySelector('.pip-window-body');
+                        if (pipContent) {
+                            pipContent.scrollTop = elements.teleprompterDisplay.scrollTop;
+                        }
                     }
                 }
             }
@@ -712,8 +729,15 @@
         // Picture-in-Picture
         async function openPiP() {
             try {
+                // Check if running in Electron
+                if (window.electronAPI && window.electronAPI.isElectron) {
+                    openElectronPiP();
+                    return;
+                }
+
+                // Browser-based PiP
                 if (!('documentPictureInPicture' in window)) {
-                    showError('Picture-in-Picture is not supported. Please use a Chromium-based browser (Chrome, Edge).');
+                    showError('Picture-in-Picture is not supported. Please use a Chromium-based browser (Chrome, Edge) or the desktop app.');
                     return;
                 }
 
@@ -782,28 +806,76 @@
             }
         }
 
-        function closePiP() {
-            if (state.pipWindow) {
-                state.pipWindow.close();
+        // Electron-specific PiP functions
+        function openElectronPiP() {
+            const data = {
+                content: elements.textContent.textContent,
+                fontFamily: elements.textContent.style.fontFamily || elements.fontSelect.value,
+                fontSize: elements.textContent.style.fontSize || elements.fontSizeSlider.value + 'px',
+                fontColor: elements.textContent.style.color || elements.colorPicker.value,
+                lineWidth: elements.textContent.style.maxWidth || elements.widthSlider.value + 'ch',
+                theme: document.documentElement.getAttribute('data-theme') || 'dark'
+            };
+
+            window.electronAPI.openPiP(data);
+            state.pipWindow = { electron: true }; // Marker that PiP is open
+
+            elements.pipButton.textContent = 'Close Picture-in-Picture';
+            elements.pipButton.style.backgroundColor = '#ff6b6b';
+        }
+
+        // Listen for PiP close from Electron
+        if (window.electronAPI) {
+            window.electronAPI.onPiPClosed(() => {
                 state.pipWindow = null;
                 elements.pipButton.textContent = 'Open Picture-in-Picture';
                 elements.pipButton.style.backgroundColor = '';
+            });
+        }
+
+        function closePiP() {
+            if (state.pipWindow) {
+                if (state.pipWindow.electron) {
+                    window.electronAPI.closePiP();
+                    state.pipWindow = null;
+                    elements.pipButton.textContent = 'Open Picture-in-Picture';
+                    elements.pipButton.style.backgroundColor = '';
+                } else {
+                    state.pipWindow.close();
+                    state.pipWindow = null;
+                    elements.pipButton.textContent = 'Open Picture-in-Picture';
+                    elements.pipButton.style.backgroundColor = '';
+                }
             }
         }
 
         function updatePiPContent() {
             if (state.pipWindow) {
-                const pipContent = state.pipWindow.document.querySelector('.pip-content');
-                const pipBody = state.pipWindow.document.querySelector('.pip-window-body');
-                if (pipContent && pipBody) {
-                    pipContent.textContent = elements.textContent.textContent;
-                    pipContent.style.fontFamily = elements.textContent.style.fontFamily;
-                    pipContent.style.fontSize = elements.textContent.style.fontSize;
-                    pipContent.style.color = elements.textContent.style.color;
-                    pipContent.style.maxWidth = elements.textContent.style.maxWidth;
-                    pipBody.style.fontFamily = elements.textContent.style.fontFamily;
-                    pipBody.style.fontSize = elements.textContent.style.fontSize;
-                    pipBody.style.color = elements.textContent.style.color;
+                if (state.pipWindow.electron) {
+                    // Electron PiP
+                    const data = {
+                        content: elements.textContent.textContent,
+                        fontFamily: elements.textContent.style.fontFamily || elements.fontSelect.value,
+                        fontSize: elements.textContent.style.fontSize || elements.fontSizeSlider.value + 'px',
+                        fontColor: elements.textContent.style.color || elements.colorPicker.value,
+                        lineWidth: elements.textContent.style.maxWidth || elements.widthSlider.value + 'ch',
+                        theme: document.documentElement.getAttribute('data-theme') || 'dark'
+                    };
+                    window.electronAPI.updatePiPContent(data);
+                } else {
+                    // Browser PiP
+                    const pipContent = state.pipWindow.document.querySelector('.pip-content');
+                    const pipBody = state.pipWindow.document.querySelector('.pip-window-body');
+                    if (pipContent && pipBody) {
+                        pipContent.textContent = elements.textContent.textContent;
+                        pipContent.style.fontFamily = elements.textContent.style.fontFamily;
+                        pipContent.style.fontSize = elements.textContent.style.fontSize;
+                        pipContent.style.color = elements.textContent.style.color;
+                        pipContent.style.maxWidth = elements.textContent.style.maxWidth;
+                        pipBody.style.fontFamily = elements.textContent.style.fontFamily;
+                        pipBody.style.fontSize = elements.textContent.style.fontSize;
+                        pipBody.style.color = elements.textContent.style.color;
+                    }
                 }
             }
         }
@@ -811,7 +883,12 @@
         function updatePiPStyles() {
             if (state.pipWindow) {
                 const theme = document.documentElement.getAttribute('data-theme');
-                state.pipWindow.document.documentElement.setAttribute('data-theme', theme);
+                if (state.pipWindow.electron) {
+                    // Theme change will be handled via updatePiPContent
+                    updatePiPContent();
+                } else {
+                    state.pipWindow.document.documentElement.setAttribute('data-theme', theme);
+                }
             }
         }
 

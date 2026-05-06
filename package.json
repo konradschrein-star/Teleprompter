@@ -1,0 +1,63 @@
+{
+  "name": "teleprompter",
+  "version": "1.0.0",
+  "description": "Desktop teleprompter application with Picture-in-Picture support",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build-portable": "electron-builder --win portable",
+    "dist": "electron-builder --win --x64"
+  },
+  "keywords": [
+    "teleprompter",
+    "presentation",
+    "video",
+    "recording"
+  ],
+  "author": "konradschrein-star",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.teleprompter.app",
+    "productName": "Teleprompter",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "Teleprompter-Portable.exe"
+    },
+    "files": [
+      "electron-main.js",
+      "index.html",
+      "icon.ico",
+      "icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

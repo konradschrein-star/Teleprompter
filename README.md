@@ -1,6 +1,21 @@
 # Teleprompter Application
 
-A lightweight, portable teleprompter application for Windows that runs entirely in your browser. Perfect for video recording, presentations, and public speaking.
+A professional teleprompter application available as both a web app and native Windows desktop application. Perfect for video recording, presentations, and public speaking.
+
+## 🎯 Two Versions Available
+
+**🌐 Web Version** - Runs in your browser (Chrome/Edge)
+- Single HTML file
+- Works on any OS
+- Quick and portable
+
+**🖥️ Desktop App** - Native Windows application
+- Standalone .exe
+- No browser UI
+- True always-on-top Picture-in-Picture
+- Professional appearance
+
+See [BUILD.md](BUILD.md) for desktop app build instructions.
 
 ## Features
 
@@ -37,11 +52,27 @@ A lightweight, portable teleprompter application for Windows that runs entirely 
 
 ## Installation
 
-No installation required! Simply:
+### Web Version (Easy)
+
+No installation required:
 
 1. Download the files or clone this repository
 2. Double-click `Teleprompter.bat` for the best experience
 3. Or open `index.html` directly in your browser
+
+### Desktop App (Professional)
+
+For the standalone .exe application:
+
+1. **Download pre-built** (recommended):
+   - Go to [Releases](https://github.com/konradschrein-star/Teleprompter/releases)
+   - Download `Teleprompter-Portable.exe`
+   - Run it - no installation needed!
+
+2. **Build from source**:
+   - See [BUILD.md](BUILD.md) for instructions
+   - Requires Node.js
+   - Creates a standalone .exe file
 
 **For detailed setup and sharing instructions, see [SETUP.md](SETUP.md)**
 
