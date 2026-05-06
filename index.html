@@ -439,7 +439,8 @@
 
             elements.speedSlider.value = settings.speed;
             elements.speedValue.textContent = settings.speed;
-            state.speed = parseFloat(settings.speed);
+            state.speed = Math.max(0.25, parseFloat(settings.speed) || 2);
+            console.log('Speed initialized to:', state.speed);
 
             elements.widthSlider.value = settings.lineWidth;
             elements.widthValue.textContent = settings.lineWidth + 'ch';
@@ -555,8 +556,9 @@
 
         // Settings controls
         elements.speedSlider.addEventListener('input', (e) => {
-            state.speed = parseFloat(e.target.value);
+            state.speed = Math.max(0.25, parseFloat(e.target.value) || 2);
             elements.speedValue.textContent = e.target.value;
+            console.log('Speed changed to:', state.speed);
             saveSettings();
         });
 
