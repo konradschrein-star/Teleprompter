@@ -642,6 +642,7 @@
         function autoScroll() {
             if (state.isPlaying && !state.userScrolled) {
                 const scrollAmount = state.speed * state.speedMultiplier;
+                console.log('Scrolling:', scrollAmount, 'Current top:', elements.teleprompterDisplay.scrollTop);
                 elements.teleprompterDisplay.scrollTop += scrollAmount;
 
                 if (state.pipWindow) {
@@ -661,11 +662,13 @@
         }
 
         function startPlayback() {
+            console.log('startPlayback called, isPlaying:', state.isPlaying, 'speed:', state.speed, 'userScrolled:', state.userScrolled);
             if (!state.isPlaying) {
                 state.isPlaying = true;
                 state.userScrolled = false;
                 updatePlaybackUI();
                 if (!state.animationFrameId) {
+                    console.log('Starting autoScroll loop');
                     autoScroll();
                 }
             }
@@ -685,6 +688,7 @@
         }
 
         // Keyboard controls - Spacebar, C key, and W key
+        // Define these in shared scope for both keyboard and PiP listeners
         let keyHoldTimer = null;
         let keyWasHeld = false;
         let wasPlayingBeforeHold = false;
