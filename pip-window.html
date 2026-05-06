@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teleprompter PiP</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --text-primary: #ffffff;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --text-primary: #000000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        body::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        body::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        body::-webkit-scrollbar-thumb {
+            background: rgba(128, 128, 128, 0.5);
+            border-radius: 6px;
+        }
+
+        .pip-content {
+            margin: 0 auto;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .playback-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 1000;
+        }
+
+        .playback-indicator.playing {
+            color: #4a9eff;
+        }
+
+        .playback-indicator .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .playback-indicator.playing .dot {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+    <div class="playback-indicator" id="playbackIndicator">
+        <div class="dot"></div>
+        <span id="playbackStatus">Paused</span>
+    </div>
+    <div class="pip-content" id="pipContent"></div>
+
+    <script>
+        // Listen for initial setup
+        window.electronAPI.onPiPSetup((data) => {
+            const pipContent = document.getElementById('pipContent');
+            const html = document.documentElement;
+
+            pipContent.textContent = data.content;
+            pipContent.style.fontFamily = data.fontFamily;
+            pipContent.style.fontSize = data.fontSize;
+            pipContent.style.color = data.fontColor;
+            pipContent.style.maxWidth = data.lineWidth;
+            html.setAttribute('data-theme', data.theme);
+        });
+
+        // Listen for content updates from main window
+        window.electronAPI.onPiPContentUpdate((data) => {
+            const pipContent = document.getElementById('pipContent');
+            const html = document.documentElement;
+
+            pipContent.textContent = data.content;
+            pipContent.style.fontFamily = data.fontFamily;
+            pipContent.style.fontSize = data.fontSize;
+            pipContent.style.color = data.fontColor;
+            pipContent.style.maxWidth = data.lineWidth;
+            html.setAttribute('data-theme', data.theme);
+        });
+
+        // Listen for scroll updates
+        window.electronAPI.onPiPScroll((scrollTop) => {
+            document.body.scrollTop = scrollTop;
+            document.documentElement.scrollTop = scrollTop;
+        });
+
+        // Listen for playback status updates
+        window.electronAPI.onPiPPlayback((isPlaying, status) => {
+            const indicator = document.getElementById('playbackIndicator');
+            const statusText = document.getElementById('playbackStatus');
+
+            if (isPlaying) {
+                indicator.classList.add('playing');
+            } else {
+                indicator.classList.remove('playing');
+            }
+            statusText.textContent = status;
+        });
+    </script>
+</body>
+</html>

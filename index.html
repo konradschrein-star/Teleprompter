@@ -221,7 +221,7 @@
         .text-content {
             max-width: 70ch;
             margin: 0 auto;
-            font-size: 32px;
+            font-size: 48px;
             line-height: 1.6;
             font-family: 'Roboto', Arial, sans-serif;
             color: var(--text-primary);
@@ -335,9 +335,9 @@
             <div class="control-group">
                 <label>
                     Font Size
-                    <span class="range-value" id="fontSizeValue">32px</span>
+                    <span class="range-value" id="fontSizeValue">48px</span>
                 </label>
-                <input type="range" id="fontSizeSlider" min="16" max="72" value="32" step="2">
+                <input type="range" id="fontSizeSlider" min="24" max="120" value="48" step="4">
             </div>
 
             <div class="control-group">
@@ -431,7 +431,7 @@
             const settings = {
                 speed: localStorage.getItem('speed') || '2',
                 lineWidth: localStorage.getItem('lineWidth') || '70',
-                fontSize: localStorage.getItem('fontSize') || '32',
+                fontSize: localStorage.getItem('fontSize') || '48',
                 fontFamily: localStorage.getItem('fontFamily') || "'Roboto', Arial, sans-serif",
                 fontColor: localStorage.getItem('fontColor') || '#ffffff',
                 theme: localStorage.getItem('theme') || 'dark'

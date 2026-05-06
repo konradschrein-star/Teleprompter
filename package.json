@@ -52,7 +52,9 @@
     },
     "files": [
       "electron-main.js",
+      "preload.js",
       "index.html",
+      "pip-window.html",
       "icon.ico",
       "icon.png"
     ],
