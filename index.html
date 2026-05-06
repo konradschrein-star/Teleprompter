@@ -645,8 +645,11 @@
             console.log('autoScroll running - isPlaying:', state.isPlaying, 'userScrolled:', state.userScrolled, 'speed:', state.speed);
             if (state.isPlaying && !state.userScrolled) {
                 const scrollAmount = state.speed * state.speedMultiplier;
-                console.log('>>> SCROLLING NOW:', scrollAmount, 'Current top:', elements.teleprompterDisplay.scrollTop);
-                elements.teleprompterDisplay.scrollTop += scrollAmount;
+                const currentTop = elements.teleprompterDisplay.scrollTop;
+                const newTop = currentTop + scrollAmount;
+                console.log('>>> SCROLLING NOW:', scrollAmount, 'Current top:', currentTop, 'Trying to set to:', newTop);
+                elements.teleprompterDisplay.scrollTop = newTop;
+                console.log('>>> After setting, scrollTop is:', elements.teleprompterDisplay.scrollTop);
 
                 if (state.pipWindow) {
                     if (state.pipWindow.electron && window.electronAPI) {
@@ -666,6 +669,9 @@
 
         function startPlayback() {
             console.log('startPlayback called, isPlaying:', state.isPlaying, 'speed:', state.speed, 'userScrolled:', state.userScrolled);
+            console.log('Element:', elements.teleprompterDisplay);
+            console.log('ScrollHeight:', elements.teleprompterDisplay.scrollHeight, 'ClientHeight:', elements.teleprompterDisplay.clientHeight);
+            console.log('Is scrollable?', elements.teleprompterDisplay.scrollHeight > elements.teleprompterDisplay.clientHeight);
             if (!state.isPlaying) {
                 state.isPlaying = true;
                 state.userScrolled = false;
