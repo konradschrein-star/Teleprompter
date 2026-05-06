@@ -642,9 +642,10 @@
         }
 
         function autoScroll() {
+            console.log('autoScroll running - isPlaying:', state.isPlaying, 'userScrolled:', state.userScrolled, 'speed:', state.speed);
             if (state.isPlaying && !state.userScrolled) {
                 const scrollAmount = state.speed * state.speedMultiplier;
-                console.log('Scrolling:', scrollAmount, 'Current top:', elements.teleprompterDisplay.scrollTop);
+                console.log('>>> SCROLLING NOW:', scrollAmount, 'Current top:', elements.teleprompterDisplay.scrollTop);
                 elements.teleprompterDisplay.scrollTop += scrollAmount;
 
                 if (state.pipWindow) {
