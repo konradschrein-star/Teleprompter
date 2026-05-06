@@ -18,10 +18,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onPiPPlayback: (callback) => ipcRenderer.on('pip-playback', (event, isPlaying, status) => callback(isPlaying, status)),
 
     // PiP window controls - send commands back to main window
-    togglePlayback: (isKeyDown) => ipcRenderer.send('pip-toggle-playback', isKeyDown),
+    playbackToggle: () => ipcRenderer.send('pip-playback-toggle'),
+    playbackHold: () => ipcRenderer.send('pip-playback-hold'),
+    playbackRelease: () => ipcRenderer.send('pip-playback-release'),
+    scrollToTop: () => ipcRenderer.send('pip-scroll-to-top'),
 
-    // Main window - receive playback toggle from PiP
-    onPiPPlaybackToggle: (callback) => ipcRenderer.on('pip-playback-toggle', (event, isKeyDown) => callback(isKeyDown)),
+    // Main window - receive playback commands from PiP
+    onPiPPlaybackToggle: (callback) => ipcRenderer.on('main-playback-toggle', () => callback()),
+    onPiPPlaybackHold: (callback) => ipcRenderer.on('main-playback-hold', () => callback()),
+    onPiPPlaybackRelease: (callback) => ipcRenderer.on('main-playback-release', () => callback()),
+    onPiPScrollToTop: (callback) => ipcRenderer.on('main-scroll-to-top', () => callback()),
 
     isElectron: true
 });

@@ -37,10 +37,27 @@ ipcMain.on('update-pip-playback', (event, isPlaying, status) => {
     }
 });
 
-ipcMain.on('pip-toggle-playback', (event, isKeyDown) => {
-    // Forward playback toggle from PiP window to main window
+ipcMain.on('pip-playback-toggle', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('pip-playback-toggle', isKeyDown);
+        mainWindow.webContents.send('main-playback-toggle');
+    }
+});
+
+ipcMain.on('pip-playback-hold', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('main-playback-hold');
+    }
+});
+
+ipcMain.on('pip-playback-release', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('main-playback-release');
+    }
+});
+
+ipcMain.on('pip-scroll-to-top', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('main-scroll-to-top');
     }
 });
 

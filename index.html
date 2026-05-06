@@ -684,22 +684,38 @@
             }
         }
 
-        // Keyboard controls - Spacebar and C key
+        // Keyboard controls - Spacebar, C key, and W key
+        let keyHoldTimer = null;
+        let keyWasHeld = false;
+        let wasPlayingBeforeHold = false;
+
         document.addEventListener('keydown', (e) => {
+            // W key - scroll to top
+            if (e.key.toLowerCase() === 'w' && !e.repeat) {
+                e.preventDefault();
+                elements.teleprompterDisplay.scrollTop = 0;
+                if (state.pipWindow && state.pipWindow.electron && window.electronAPI) {
+                    window.electronAPI.updatePiPScroll(0);
+                }
+                return;
+            }
+
+            // Spacebar and C key - toggle play/pause, 2x speed on hold
             if ((e.code === 'Space' || e.key.toLowerCase() === 'c') && !e.repeat) {
                 e.preventDefault();
 
-                if (e.code === 'Space') {
-                    state.spacebarPressed = true;
-                }
-
-                if (!state.isPlaying) {
-                    startPlayback();
-                } else {
-                    // Already playing, increase speed to 2x
+                // Start hold timer (300ms to detect hold vs tap)
+                keyHoldTimer = setTimeout(() => {
+                    keyWasHeld = true;
+                    wasPlayingBeforeHold = state.isPlaying;
+                    // If not playing, start it
+                    if (!state.isPlaying) {
+                        startPlayback();
+                    }
+                    // Go to 2x speed
                     state.speedMultiplier = 2;
                     updatePlaybackUI();
-                }
+                }, 300);
             }
         });
 
@@ -707,40 +723,66 @@
             if (e.code === 'Space' || e.key.toLowerCase() === 'c') {
                 e.preventDefault();
 
-                if (e.code === 'Space') {
-                    state.spacebarPressed = false;
-                }
+                clearTimeout(keyHoldTimer);
 
-                if (state.speedMultiplier === 2) {
+                if (keyWasHeld) {
+                    // Was held - return to 1x speed and restore previous state
                     state.speedMultiplier = 1;
-                    updatePlaybackUI();
+                    if (!wasPlayingBeforeHold) {
+                        stopPlayback();
+                    } else {
+                        updatePlaybackUI();
+                    }
+                    keyWasHeld = false;
                 } else {
-                    stopPlayback();
+                    // Was a tap - toggle play/pause
+                    togglePlayback();
                 }
             }
         });
 
-        // Listen for playback toggle from PiP window (Electron only)
-        if (window.electronAPI && window.electronAPI.onPiPPlaybackToggle) {
-            window.electronAPI.onPiPPlaybackToggle((isKeyDown) => {
-                if (isKeyDown) {
-                    // Key pressed in PiP window
+        // Listen for playback commands from PiP window (Electron only)
+        if (window.electronAPI) {
+            // Toggle command from PiP
+            if (window.electronAPI.onPiPPlaybackToggle) {
+                window.electronAPI.onPiPPlaybackToggle(() => {
+                    togglePlayback();
+                });
+            }
+
+            // Hold command from PiP
+            if (window.electronAPI.onPiPPlaybackHold) {
+                window.electronAPI.onPiPPlaybackHold(() => {
+                    wasPlayingBeforeHold = state.isPlaying;
                     if (!state.isPlaying) {
                         startPlayback();
-                    } else {
-                        state.speedMultiplier = 2;
-                        updatePlaybackUI();
                     }
-                } else {
-                    // Key released in PiP window
-                    if (state.speedMultiplier === 2) {
-                        state.speedMultiplier = 1;
-                        updatePlaybackUI();
-                    } else {
+                    state.speedMultiplier = 2;
+                    updatePlaybackUI();
+                });
+            }
+
+            // Release command from PiP
+            if (window.electronAPI.onPiPPlaybackRelease) {
+                window.electronAPI.onPiPPlaybackRelease(() => {
+                    state.speedMultiplier = 1;
+                    if (!wasPlayingBeforeHold) {
                         stopPlayback();
+                    } else {
+                        updatePlaybackUI();
                     }
-                }
-            });
+                });
+            }
+
+            // Scroll to top command from PiP
+            if (window.electronAPI.onPiPScrollToTop) {
+                window.electronAPI.onPiPScrollToTop(() => {
+                    elements.teleprompterDisplay.scrollTop = 0;
+                    if (state.pipWindow && state.pipWindow.electron) {
+                        window.electronAPI.updatePiPScroll(0);
+                    }
+                });
+            }
         }
 
         // Manual scroll detection

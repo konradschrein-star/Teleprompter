@@ -156,32 +156,52 @@
             window.close();
         });
 
-        // Track spacebar state for hold detection
-        let spacebarPressed = false;
+        // Keyboard controls - Spacebar, C key, and W key
+        let keyHoldTimer = null;
+        let keyWasHeld = false;
 
-        // Keyboard controls - Spacebar and C key for play/pause
         document.addEventListener('keydown', (e) => {
+            // W key - scroll to top
+            if (e.key.toLowerCase() === 'w' && !e.repeat) {
+                e.preventDefault();
+                if (window.electronAPI.scrollToTop) {
+                    window.electronAPI.scrollToTop();
+                }
+                return;
+            }
+
+            // Spacebar and C key - toggle play/pause, 2x speed on hold
             if ((e.code === 'Space' || e.key.toLowerCase() === 'c') && !e.repeat) {
                 e.preventDefault();
-                if (e.code === 'Space') {
-                    spacebarPressed = true;
-                }
-                // Send toggle or speed-up command to main window
-                if (window.electronAPI.togglePlayback) {
-                    window.electronAPI.togglePlayback(true); // true = start/speed up
-                }
+
+                // Start hold timer (300ms to detect hold vs tap)
+                keyHoldTimer = setTimeout(() => {
+                    keyWasHeld = true;
+                    // Send hold command to main window
+                    if (window.electronAPI.playbackHold) {
+                        window.electronAPI.playbackHold();
+                    }
+                }, 300);
             }
         });
 
         document.addEventListener('keyup', (e) => {
             if (e.code === 'Space' || e.key.toLowerCase() === 'c') {
                 e.preventDefault();
-                if (e.code === 'Space') {
-                    spacebarPressed = false;
-                }
-                // Send stop or slow down command to main window
-                if (window.electronAPI.togglePlayback) {
-                    window.electronAPI.togglePlayback(false); // false = stop/slow down
+
+                clearTimeout(keyHoldTimer);
+
+                if (keyWasHeld) {
+                    // Was held - send release command
+                    if (window.electronAPI.playbackRelease) {
+                        window.electronAPI.playbackRelease();
+                    }
+                    keyWasHeld = false;
+                } else {
+                    // Was a tap - send toggle command
+                    if (window.electronAPI.playbackToggle) {
+                        window.electronAPI.playbackToggle();
+                    }
                 }
             }
         });
