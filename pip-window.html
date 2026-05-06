@@ -84,9 +84,66 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
+
+        /* Window controls */
+        .window-controls {
+            position: fixed;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 2000;
+            -webkit-app-region: no-drag;
+        }
+
+        body:hover .window-controls {
+            opacity: 1;
+        }
+
+        .window-control-btn {
+            width: 46px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        .window-control-btn:hover {
+            background: rgba(200, 0, 0, 0.8);
+        }
+
+        /* Draggable area */
+        .drag-region {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 46px;
+            height: 32px;
+            -webkit-app-region: drag;
+            z-index: 1999;
+            opacity: 0;
+            transition: opacity 0.2s;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        body:hover .drag-region {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
+    <div class="drag-region"></div>
+    <div class="window-controls">
+        <button class="window-control-btn" id="closeBtn" title="Close">✕</button>
+    </div>
     <div class="playback-indicator" id="playbackIndicator">
         <div class="dot"></div>
         <span id="playbackStatus">Paused</span>
@@ -94,6 +151,11 @@
     <div class="pip-content" id="pipContent"></div>
 
     <script>
+        // Close button handler
+        document.getElementById('closeBtn').addEventListener('click', () => {
+            window.close();
+        });
+
         // Listen for initial setup
         window.electronAPI.onPiPSetup((data) => {
             const pipContent = document.getElementById('pipContent');

@@ -75,15 +75,16 @@ function createPiPWindow(data) {
         minWidth: 250,
         minHeight: 150,
         backgroundColor: data.theme === 'dark' ? '#1a1a1a' : '#ffffff',
-        frame: true,
+        frame: false,
+        transparent: false,
         alwaysOnTop: true,
+        resizable: true,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         },
-        icon: path.join(__dirname, 'icon.png'),
-        title: 'Teleprompter - PiP'
+        icon: path.join(__dirname, 'icon.png')
     });
 
     // Load the PiP window HTML file
