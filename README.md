@@ -20,6 +20,16 @@ A lightweight, portable teleprompter application for Windows that runs entirely 
   - Automatic pause when manually scrolling
 - **Persistent Settings** - Your preferences are saved and restored automatically
 
+## Quick Start
+
+**Just want to run it?** Double-click `Teleprompter.bat` or `index.html`
+
+**Want to put it on your desktop?** See **[SETUP.md](SETUP.md)** for:
+- Creating a desktop shortcut
+- Converting to a standalone .exe file
+- Sharing with friends
+- Distribution instructions
+
 ## Requirements
 
 - **Chromium-based browser** (Chrome, Edge, Brave, etc.) - required for Picture-in-Picture functionality
@@ -29,9 +39,11 @@ A lightweight, portable teleprompter application for Windows that runs entirely 
 
 No installation required! Simply:
 
-1. Download `index.html`
-2. Open it in your browser (Chrome or Edge recommended)
-3. Start using immediately
+1. Download the files or clone this repository
+2. Double-click `Teleprompter.bat` for the best experience
+3. Or open `index.html` directly in your browser
+
+**For detailed setup and sharing instructions, see [SETUP.md](SETUP.md)**
 
 ## Usage
 
