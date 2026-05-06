@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teleprompter</title>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --border-color: #404040;
+            --accent-color: #4a9eff;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --text-primary: #000000;
+            --text-secondary: #333333;
+            --border-color: #e0e0e0;
+            --accent-color: #2563eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .settings-panel {
+            width: 320px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .settings-panel h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .file-drop-zone:hover,
+        .file-drop-zone.drag-over {
+            border-color: var(--accent-color);
+            background-color: var(--bg-primary);
+        }
+
+        .file-drop-zone p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border-color);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: none;
+        }
+
+        select, input[type="color"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        input[type="color"] {
+            height: 40px;
+            cursor: pointer;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .theme-toggle {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .display-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .teleprompter-display {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            padding: 40px;
+        }
+
+        .teleprompter-display::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .teleprompter-display::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .teleprompter-display::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 6px;
+        }
+
+        .teleprompter-display::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        .text-content {
+            max-width: 70ch;
+            margin: 0 auto;
+            font-size: 32px;
+            line-height: 1.6;
+            font-family: 'Roboto', Arial, sans-serif;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .playback-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .playback-indicator.playing {
+            color: var(--accent-color);
+        }
+
+        .playback-indicator .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+        }
+
+        .playback-indicator.playing .dot {
+            background-color: var(--accent-color);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .pip-window-body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        .pip-content {
+            max-width: 100%;
+            margin: 0 auto;
+            font-size: 32px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="settings-panel">
+            <h2>Teleprompter Settings</h2>
+
+            <div class="control-group">
+                <label>Load Content</label>
+                <div class="file-drop-zone" id="dropZone">
+                    <p>📄 Drop file here or click to browse<br>
+                    <small>Supports .txt, .md, .docx</small></p>
+                </div>
+                <input type="file" id="fileInput" accept=".txt,.md,.docx">
+                <textarea id="pasteArea" placeholder="Or paste text here..."></textarea>
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Scroll Speed
+                    <span class="range-value" id="speedValue">2</span>
+                </label>
+                <input type="range" id="speedSlider" min="1" max="10" value="2" step="0.5">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Line Width
+                    <span class="range-value" id="widthValue">70ch</span>
+                </label>
+                <input type="range" id="widthSlider" min="40" max="100" value="70" step="5">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Font Size
+                    <span class="range-value" id="fontSizeValue">32px</span>
+                </label>
+                <input type="range" id="fontSizeSlider" min="16" max="72" value="32" step="2">
+            </div>
+
+            <div class="control-group">
+                <label>Font Family</label>
+                <select id="fontSelect">
+                    <option value="'Roboto', Arial, sans-serif">Roboto</option>
+                    <option value="'Open Sans', Arial, sans-serif">Open Sans</option>
+                    <option value="'Merriweather', Georgia, serif">Merriweather</option>
+                    <option value="'Lora', Georgia, serif">Lora</option>
+                    <option value="'PT Serif', Georgia, serif">PT Serif</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Font Color</label>
+                <input type="color" id="colorPicker" value="#ffffff">
+            </div>
+
+            <div class="control-group">
+                <button class="theme-toggle" id="themeToggle">Toggle Theme</button>
+            </div>
+
+            <div class="control-group">
+                <button id="pipButton">Open Picture-in-Picture</button>
+            </div>
+        </div>
+
+        <div class="display-area">
+            <div class="playback-indicator" id="playbackIndicator">
+                <div class="dot"></div>
+                <span id="playbackStatus">Paused</span>
+            </div>
+            <div class="teleprompter-display" id="teleprompterDisplay">
+                <div class="text-content" id="textContent">
+                    Welcome to the Teleprompter!
+
+                    Load your script by:
+                    • Dragging a file into the drop zone
+                    • Clicking the drop zone to browse
+                    • Pasting text directly
+
+                    Controls:
+                    • Press SPACEBAR to play/pause
+                    • Hold SPACEBAR for 2x speed
+                    • Scroll with mouse to pause
+                    • Use Picture-in-Picture for overlay
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            isPlaying: false,
+            speed: 2,
+            speedMultiplier: 1,
+            animationFrameId: null,
+            pipWindow: null,
+            spacebarPressed: false,
+            userScrolled: false
+        };
+
+        // DOM elements
+        const elements = {
+            dropZone: document.getElementById('dropZone'),
+            fileInput: document.getElementById('fileInput'),
+            pasteArea: document.getElementById('pasteArea'),
+            errorMessage: document.getElementById('errorMessage'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
+            widthSlider: document.getElementById('widthSlider'),
+            widthValue: document.getElementById('widthValue'),
+            fontSizeSlider: document.getElementById('fontSizeSlider'),
+            fontSizeValue: document.getElementById('fontSizeValue'),
+            fontSelect: document.getElementById('fontSelect'),
+            colorPicker: document.getElementById('colorPicker'),
+            themeToggle: document.getElementById('themeToggle'),
+            pipButton: document.getElementById('pipButton'),
+            teleprompterDisplay: document.getElementById('teleprompterDisplay'),
+            textContent: document.getElementById('textContent'),
+            playbackIndicator: document.getElementById('playbackIndicator'),
+            playbackStatus: document.getElementById('playbackStatus')
+        };
+
+        // Load saved settings
+        function loadSettings() {
+            const settings = {
+                speed: localStorage.getItem('speed') || '2',
+                lineWidth: localStorage.getItem('lineWidth') || '70',
+                fontSize: localStorage.getItem('fontSize') || '32',
+                fontFamily: localStorage.getItem('fontFamily') || "'Roboto', Arial, sans-serif",
+                fontColor: localStorage.getItem('fontColor') || '#ffffff',
+                theme: localStorage.getItem('theme') || 'dark'
+            };
+
+            elements.speedSlider.value = settings.speed;
+            elements.speedValue.textContent = settings.speed;
+            state.speed = parseFloat(settings.speed);
+
+            elements.widthSlider.value = settings.lineWidth;
+            elements.widthValue.textContent = settings.lineWidth + 'ch';
+            elements.textContent.style.maxWidth = settings.lineWidth + 'ch';
+
+            elements.fontSizeSlider.value = settings.fontSize;
+            elements.fontSizeValue.textContent = settings.fontSize + 'px';
+            elements.textContent.style.fontSize = settings.fontSize + 'px';
+
+            elements.fontSelect.value = settings.fontFamily;
+            elements.textContent.style.fontFamily = settings.fontFamily;
+
+            elements.colorPicker.value = settings.fontColor;
+            elements.textContent.style.color = settings.fontColor;
+
+            document.documentElement.setAttribute('data-theme', settings.theme);
+        }
+
+        // Save settings with debounce
+        let saveTimeout;
+        function saveSettings() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                localStorage.setItem('speed', elements.speedSlider.value);
+                localStorage.setItem('lineWidth', elements.widthSlider.value);
+                localStorage.setItem('fontSize', elements.fontSizeSlider.value);
+                localStorage.setItem('fontFamily', elements.fontSelect.value);
+                localStorage.setItem('fontColor', elements.colorPicker.value);
+                localStorage.setItem('theme', document.documentElement.getAttribute('data-theme'));
+            }, 300);
+        }
+
+        // File handling
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorMessage.classList.add('show');
+            setTimeout(() => {
+                elements.errorMessage.classList.remove('show');
+            }, 5000);
+        }
+
+        function loadText(text) {
+            elements.textContent.textContent = text;
+            elements.teleprompterDisplay.scrollTop = 0;
+            if (state.pipWindow) {
+                updatePiPContent();
+            }
+        }
+
+        async function handleFile(file) {
+            const fileType = file.name.split('.').pop().toLowerCase();
+
+            try {
+                if (fileType === 'txt' || fileType === 'md') {
+                    const text = await file.text();
+                    loadText(text);
+                } else if (fileType === 'docx') {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    loadText(result.value);
+                } else {
+                    showError('Unsupported file type. Please use .txt, .md, or .docx');
+                }
+            } catch (error) {
+                showError('Error reading file: ' + error.message);
+            }
+        }
+
+        // Drag and drop
+        elements.dropZone.addEventListener('click', () => {
+            elements.fileInput.click();
+        });
+
+        elements.fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('drag-over');
+        });
+
+        elements.dropZone.addEventListener('dragleave', () => {
+            elements.dropZone.classList.remove('drag-over');
+        });
+
+        elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Paste handling
+        elements.pasteArea.addEventListener('paste', (e) => {
+            setTimeout(() => {
+                const text = elements.pasteArea.value;
+                if (text.trim()) {
+                    loadText(text);
+                }
+            }, 10);
+        });
+
+        elements.pasteArea.addEventListener('input', (e) => {
+            const text = elements.pasteArea.value;
+            if (text.trim()) {
+                loadText(text);
+            }
+        });
+
+        // Settings controls
+        elements.speedSlider.addEventListener('input', (e) => {
+            state.speed = parseFloat(e.target.value);
+            elements.speedValue.textContent = e.target.value;
+            saveSettings();
+        });
+
+        elements.widthSlider.addEventListener('input', (e) => {
+            const width = e.target.value + 'ch';
+            elements.widthValue.textContent = width;
+            elements.textContent.style.maxWidth = width;
+            saveSettings();
+            if (state.pipWindow) {
+                updatePiPContent();
+            }
+        });
+
+        elements.fontSizeSlider.addEventListener('input', (e) => {
+            const size = e.target.value + 'px';
+            elements.fontSizeValue.textContent = size;
+            elements.textContent.style.fontSize = size;
+            saveSettings();
+            if (state.pipWindow) {
+                updatePiPContent();
+            }
+        });
+
+        elements.fontSelect.addEventListener('change', (e) => {
+            elements.textContent.style.fontFamily = e.target.value;
+            saveSettings();
+            if (state.pipWindow) {
+                updatePiPContent();
+            }
+        });
+
+        elements.colorPicker.addEventListener('input', (e) => {
+            elements.textContent.style.color = e.target.value;
+            saveSettings();
+            if (state.pipWindow) {
+                updatePiPContent();
+            }
+        });
+
+        elements.themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+
+            // Update color picker default for theme
+            if (newTheme === 'dark' && elements.colorPicker.value === '#000000') {
+                elements.colorPicker.value = '#ffffff';
+                elements.textContent.style.color = '#ffffff';
+            } else if (newTheme === 'light' && elements.colorPicker.value === '#ffffff') {
+                elements.colorPicker.value = '#000000';
+                elements.textContent.style.color = '#000000';
+            }
+
+            saveSettings();
+            if (state.pipWindow) {
+                updatePiPStyles();
+            }
+        });
+
+        // Auto-scroll functionality
+        function updatePlaybackUI() {
+            if (state.isPlaying) {
+                elements.playbackIndicator.classList.add('playing');
+                const speedText = state.speedMultiplier === 2 ? '2x' : '1x';
+                elements.playbackStatus.textContent = `Playing (${speedText})`;
+            } else {
+                elements.playbackIndicator.classList.remove('playing');
+                elements.playbackStatus.textContent = 'Paused';
+            }
+        }
+
+        function autoScroll() {
+            if (state.isPlaying && !state.userScrolled) {
+                const scrollAmount = state.speed * state.speedMultiplier;
+                elements.teleprompterDisplay.scrollTop += scrollAmount;
+
+                if (state.pipWindow) {
+                    const pipContent = state.pipWindow.document.querySelector('.pip-window-body');
+                    if (pipContent) {
+                        pipContent.scrollTop = elements.teleprompterDisplay.scrollTop;
+                    }
+                }
+            }
+            state.animationFrameId = requestAnimationFrame(autoScroll);
+        }
+
+        function startPlayback() {
+            if (!state.isPlaying) {
+                state.isPlaying = true;
+                state.userScrolled = false;
+                updatePlaybackUI();
+                if (!state.animationFrameId) {
+                    autoScroll();
+                }
+            }
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            updatePlaybackUI();
+        }
+
+        function togglePlayback() {
+            if (state.isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                state.spacebarPressed = true;
+
+                if (!state.isPlaying) {
+                    startPlayback();
+                } else {
+                    // Already playing, increase speed to 2x
+                    state.speedMultiplier = 2;
+                    updatePlaybackUI();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                state.spacebarPressed = false;
+
+                if (state.speedMultiplier === 2) {
+                    state.speedMultiplier = 1;
+                    updatePlaybackUI();
+                } else {
+                    stopPlayback();
+                }
+            }
+        });
+
+        // Manual scroll detection
+        let scrollTimeout;
+        elements.teleprompterDisplay.addEventListener('wheel', (e) => {
+            state.userScrolled = true;
+            stopPlayback();
+
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                state.userScrolled = false;
+            }, 2000);
+        });
+
+        // Picture-in-Picture
+        async function openPiP() {
+            try {
+                if (!('documentPictureInPicture' in window)) {
+                    showError('Picture-in-Picture is not supported. Please use a Chromium-based browser (Chrome, Edge).');
+                    return;
+                }
+
+                state.pipWindow = await documentPictureInPicture.requestWindow({
+                    width: 800,
+                    height: 600
+                });
+
+                // Copy styles to PiP window
+                const styleSheets = Array.from(document.styleSheets);
+                const styles = styleSheets
+                    .map(sheet => {
+                        try {
+                            return Array.from(sheet.cssRules)
+                                .map(rule => rule.cssText)
+                                .join('\n');
+                        } catch (e) {
+                            return '';
+                        }
+                    })
+                    .join('\n');
+
+                const styleElement = state.pipWindow.document.createElement('style');
+                styleElement.textContent = styles;
+                state.pipWindow.document.head.appendChild(styleElement);
+
+                // Set theme attribute
+                const theme = document.documentElement.getAttribute('data-theme');
+                state.pipWindow.document.documentElement.setAttribute('data-theme', theme);
+
+                // Create PiP content
+                const pipBody = state.pipWindow.document.createElement('div');
+                pipBody.className = 'pip-window-body';
+                pipBody.style.fontFamily = elements.textContent.style.fontFamily;
+                pipBody.style.fontSize = elements.textContent.style.fontSize;
+                pipBody.style.color = elements.textContent.style.color;
+                pipBody.style.maxWidth = elements.textContent.style.maxWidth;
+
+                const pipContent = state.pipWindow.document.createElement('div');
+                pipContent.className = 'pip-content';
+                pipContent.textContent = elements.textContent.textContent;
+                pipContent.style.fontFamily = elements.textContent.style.fontFamily;
+                pipContent.style.fontSize = elements.textContent.style.fontSize;
+                pipContent.style.color = elements.textContent.style.color;
+                pipContent.style.maxWidth = elements.textContent.style.maxWidth;
+
+                pipBody.appendChild(pipContent);
+                state.pipWindow.document.body.appendChild(pipBody);
+
+                // Sync scroll position
+                pipBody.scrollTop = elements.teleprompterDisplay.scrollTop;
+
+                // Update button state
+                elements.pipButton.textContent = 'Close Picture-in-Picture';
+                elements.pipButton.style.backgroundColor = '#ff6b6b';
+
+                // Handle PiP window close
+                state.pipWindow.addEventListener('pagehide', () => {
+                    state.pipWindow = null;
+                    elements.pipButton.textContent = 'Open Picture-in-Picture';
+                    elements.pipButton.style.backgroundColor = '';
+                });
+
+            } catch (error) {
+                showError('Failed to open Picture-in-Picture: ' + error.message);
+            }
+        }
+
+        function closePiP() {
+            if (state.pipWindow) {
+                state.pipWindow.close();
+                state.pipWindow = null;
+                elements.pipButton.textContent = 'Open Picture-in-Picture';
+                elements.pipButton.style.backgroundColor = '';
+            }
+        }
+
+        function updatePiPContent() {
+            if (state.pipWindow) {
+                const pipContent = state.pipWindow.document.querySelector('.pip-content');
+                const pipBody = state.pipWindow.document.querySelector('.pip-window-body');
+                if (pipContent && pipBody) {
+                    pipContent.textContent = elements.textContent.textContent;
+                    pipContent.style.fontFamily = elements.textContent.style.fontFamily;
+                    pipContent.style.fontSize = elements.textContent.style.fontSize;
+                    pipContent.style.color = elements.textContent.style.color;
+                    pipContent.style.maxWidth = elements.textContent.style.maxWidth;
+                    pipBody.style.fontFamily = elements.textContent.style.fontFamily;
+                    pipBody.style.fontSize = elements.textContent.style.fontSize;
+                    pipBody.style.color = elements.textContent.style.color;
+                }
+            }
+        }
+
+        function updatePiPStyles() {
+            if (state.pipWindow) {
+                const theme = document.documentElement.getAttribute('data-theme');
+                state.pipWindow.document.documentElement.setAttribute('data-theme', theme);
+            }
+        }
+
+        elements.pipButton.addEventListener('click', () => {
+            if (state.pipWindow) {
+                closePiP();
+            } else {
+                openPiP();
+            }
+        });
+
+        // Initialize
+        loadSettings();
+        autoScroll(); // Start the animation loop
+        updatePlaybackUI();
+    </script>
+</body>
+</html>
