@@ -702,6 +702,16 @@
         let wasPlayingBeforeHold = false;
 
         document.addEventListener('keydown', (e) => {
+            // T key - TEST SCROLL (force to 500)
+            if (e.key.toLowerCase() === 't' && !e.repeat) {
+                e.preventDefault();
+                console.log('TEST: Forcing scrollTop to 500');
+                console.log('Before:', elements.teleprompterDisplay.scrollTop);
+                elements.teleprompterDisplay.scrollTop = 500;
+                console.log('After:', elements.teleprompterDisplay.scrollTop);
+                return;
+            }
+
             // W key - scroll to top
             if (e.key.toLowerCase() === 'w' && !e.repeat) {
                 e.preventDefault();
@@ -984,6 +994,9 @@
         });
 
         // Initialize
+        console.log('=================================');
+        console.log('TELEPROMPTER VERSION: 2026-05-07-FIX');
+        console.log('=================================');
         loadSettings();
         autoScroll(); // Start the animation loop
         updatePlaybackUI();
