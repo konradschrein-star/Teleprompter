@@ -154,6 +154,30 @@
     <div class="pip-content" id="pipContent"></div>
 
     <script>
+        // PiP window scroll state - runs its own animation loop
+        const pipState = {
+            isPlaying: false,
+            speed: 0.5,
+            speedMultiplier: 1,
+            scrollPosition: 0,
+            animationFrameId: null
+        };
+
+        // Auto-scroll function for PiP window
+        function autoScrollPiP() {
+            if (pipState.isPlaying) {
+                const scrollAmount = pipState.speed * pipState.speedMultiplier;
+                pipState.scrollPosition += scrollAmount;
+
+                const pipContent = document.getElementById('pipContent');
+                pipContent.style.transform = `translateY(-${pipState.scrollPosition}px)`;
+            }
+            pipState.animationFrameId = requestAnimationFrame(autoScrollPiP);
+        }
+
+        // Start the animation loop
+        autoScrollPiP();
+
         // Close button handler
         document.getElementById('closeBtn').addEventListener('click', () => {
             window.close();
@@ -167,6 +191,9 @@
             // W key - scroll to top
             if (e.key.toLowerCase() === 'w' && !e.repeat) {
                 e.preventDefault();
+                pipState.scrollPosition = 0;
+                const pipContent = document.getElementById('pipContent');
+                pipContent.style.transform = 'translateY(0)';
                 if (window.electronAPI.scrollToTop) {
                     window.electronAPI.scrollToTop();
                 }
@@ -180,6 +207,11 @@
                 // Start hold timer (300ms to detect hold vs tap)
                 keyHoldTimer = setTimeout(() => {
                     keyWasHeld = true;
+                    // Set 2x speed locally
+                    pipState.speedMultiplier = 2;
+                    if (!pipState.isPlaying) {
+                        pipState.isPlaying = true;
+                    }
                     // Send hold command to main window
                     if (window.electronAPI.playbackHold) {
                         window.electronAPI.playbackHold();
@@ -195,18 +227,46 @@
                 clearTimeout(keyHoldTimer);
 
                 if (keyWasHeld) {
-                    // Was held - send release command
+                    // Was held - return to 1x speed locally
+                    pipState.speedMultiplier = 1;
+                    // Send release command to main window
                     if (window.electronAPI.playbackRelease) {
                         window.electronAPI.playbackRelease();
                     }
                     keyWasHeld = false;
                 } else {
-                    // Was a tap - send toggle command
+                    // Was a tap - toggle locally
+                    pipState.isPlaying = !pipState.isPlaying;
+                    // Send toggle command to main window
                     if (window.electronAPI.playbackToggle) {
                         window.electronAPI.playbackToggle();
                     }
                 }
             }
+        });
+
+        // Wheel scrolling support
+        let scrollTimeout;
+        document.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            // Get scroll sensitivity from main window (default 1.0)
+            const sensitivity = 1.0; // Will be synced from main window
+
+            // Adjust scroll position
+            pipState.scrollPosition = Math.max(0, pipState.scrollPosition + (e.deltaY * sensitivity));
+            const pipContent = document.getElementById('pipContent');
+            pipContent.style.transform = `translateY(-${pipState.scrollPosition}px)`;
+
+            // Stop playback locally
+            pipState.isPlaying = false;
+
+            // Clear any existing timeout
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                // Resume playback after 2 seconds of no scrolling
+                // (if main window is still playing, it will sync back)
+            }, 2000);
         });
 
         // Listen for initial setup
@@ -220,6 +280,15 @@
             pipContent.style.color = data.fontColor;
             pipContent.style.maxWidth = data.lineWidth;
             html.setAttribute('data-theme', data.theme);
+
+            // Set initial scroll position and speed
+            if (data.scrollPosition !== undefined) {
+                pipState.scrollPosition = data.scrollPosition;
+                pipContent.style.transform = `translateY(-${data.scrollPosition}px)`;
+            }
+            if (data.speed !== undefined) {
+                pipState.speed = data.speed;
+            }
         });
 
         // Listen for content updates from main window
@@ -235,8 +304,10 @@
             html.setAttribute('data-theme', data.theme);
         });
 
-        // Listen for scroll updates
+        // Listen for scroll updates - just sync position, don't apply directly
         window.electronAPI.onPiPScroll((scrollPosition) => {
+            // Sync position when manually scrolled or reset
+            pipState.scrollPosition = scrollPosition;
             const pipContent = document.getElementById('pipContent');
             pipContent.style.transform = `translateY(-${scrollPosition}px)`;
         });
@@ -245,6 +316,9 @@
         window.electronAPI.onPiPPlayback((isPlaying, status) => {
             const indicator = document.getElementById('playbackIndicator');
             const statusText = document.getElementById('playbackStatus');
+
+            // Update PiP's own playback state
+            pipState.isPlaying = isPlaying;
 
             if (isPlaying) {
                 indicator.classList.add('playing');

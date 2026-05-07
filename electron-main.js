@@ -93,9 +93,9 @@ function createMainWindow() {
 }
 
 function createPiPWindow(data) {
-    pipWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
+    const windowOptions = {
+        width: data.pipBounds?.width || 800,
+        height: data.pipBounds?.height || 600,
         minWidth: 250,
         minHeight: 150,
         backgroundColor: data.theme === 'dark' ? '#1a1a1a' : '#ffffff',
@@ -109,7 +109,15 @@ function createPiPWindow(data) {
             preload: path.join(__dirname, 'preload.js')
         },
         icon: path.join(__dirname, 'icon.png')
-    });
+    };
+
+    // Restore position if saved
+    if (data.pipBounds?.x !== undefined && data.pipBounds?.y !== undefined) {
+        windowOptions.x = data.pipBounds.x;
+        windowOptions.y = data.pipBounds.y;
+    }
+
+    pipWindow = new BrowserWindow(windowOptions);
 
     // Load the PiP window HTML file
     pipWindow.loadFile('pip-window.html');
@@ -120,10 +128,12 @@ function createPiPWindow(data) {
     });
 
     pipWindow.on('closed', () => {
-        pipWindow = null;
+        // Save window position before closing
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('pip-closed');
+            const bounds = pipWindow.getBounds();
+            mainWindow.webContents.send('pip-closed', bounds);
         }
+        pipWindow = null;
     });
 }
 

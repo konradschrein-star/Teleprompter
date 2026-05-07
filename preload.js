@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updatePiPContent: (data) => ipcRenderer.send('update-pip-content', data),
     updatePiPScroll: (scrollTop) => ipcRenderer.send('update-pip-scroll', scrollTop),
     updatePiPPlayback: (isPlaying, status) => ipcRenderer.send('update-pip-playback', isPlaying, status),
-    onPiPClosed: (callback) => ipcRenderer.on('pip-closed', callback),
+    onPiPClosed: (callback) => ipcRenderer.on('pip-closed', (event, bounds) => callback(bounds)),
 
     // PiP window API - for receiving updates
     onPiPSetup: (callback) => ipcRenderer.on('pip-setup', (event, data) => callback(data)),

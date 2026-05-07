@@ -299,12 +299,45 @@
         input[type="file"] {
             display: none;
         }
+
+        .profile-btn {
+            padding: 10px;
+            background-color: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .profile-btn:hover {
+            border-color: var(--accent-color);
+            background-color: var(--bg-secondary);
+        }
+
+        .profile-btn.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="settings-panel">
             <h2>Teleprompter Settings</h2>
+
+            <div class="control-group">
+                <label>Profiles</label>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <button class="profile-btn" data-profile="1">1</button>
+                    <button class="profile-btn" data-profile="2">2</button>
+                    <button class="profile-btn" data-profile="3">3</button>
+                    <button class="profile-btn" data-profile="4">4</button>
+                </div>
+            </div>
 
             <details class="control-group" style="margin-bottom: 15px;">
                 <summary style="cursor: pointer; font-weight: 600; margin-bottom: 10px;">📖 Quick Guide</summary>
@@ -449,7 +482,9 @@
             scrollPosition: 0,      // Track transform position in pixels
             startDelay: 0.2,        // Delay in seconds before playback starts
             endDelay: 0,            // Delay in seconds at the end
-            scrollSensitivity: 1.0  // Multiplier for wheel scroll speed
+            scrollSensitivity: 1.0, // Multiplier for wheel scroll speed
+            currentProfile: 1,      // Active profile (1-4)
+            pipBounds: null         // PiP window position and size
         };
 
         // DOM elements
@@ -482,17 +517,26 @@
 
         // Load saved settings
         function loadSettings() {
-            const settings = {
-                speed: localStorage.getItem('speed') || '0.5',
-                startDelay: localStorage.getItem('startDelay') || '0.2',
-                endDelay: localStorage.getItem('endDelay') || '0',
-                scrollSensitivity: localStorage.getItem('scrollSensitivity') || '1.0',
-                lineWidth: localStorage.getItem('lineWidth') || '70',
-                fontSize: localStorage.getItem('fontSize') || '48',
-                fontFamily: localStorage.getItem('fontFamily') || "'Roboto', Arial, sans-serif",
-                fontColor: localStorage.getItem('fontColor') || '#ffffff',
-                theme: localStorage.getItem('theme') || 'dark'
+            // Load current profile
+            state.currentProfile = parseInt(localStorage.getItem('currentProfile')) || 1;
+
+            // Load settings for current profile
+            const profileKey = `profile${state.currentProfile}`;
+            const savedSettings = localStorage.getItem(profileKey);
+
+            const defaultSettings = {
+                speed: '0.5',
+                startDelay: '0.2',
+                endDelay: '0',
+                scrollSensitivity: '1.0',
+                lineWidth: '70',
+                fontSize: '48',
+                fontFamily: "'Roboto', Arial, sans-serif",
+                fontColor: '#ffffff',
+                theme: 'dark'
             };
+
+            const settings = savedSettings ? JSON.parse(savedSettings) : defaultSettings;
 
             elements.speedSlider.value = settings.speed;
             elements.speedValue.textContent = settings.speed;
@@ -525,22 +569,31 @@
             elements.textContent.style.color = settings.fontColor;
 
             document.documentElement.setAttribute('data-theme', settings.theme);
+
+            // Load PiP window bounds
+            state.pipBounds = settings.pipBounds || null;
         }
 
         // Save settings with debounce
         let saveTimeout;
-        function saveSettings() {
+        function saveSettings(pipBounds) {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
-                localStorage.setItem('speed', elements.speedSlider.value);
-                localStorage.setItem('startDelay', elements.startDelaySlider.value);
-                localStorage.setItem('endDelay', elements.endDelaySlider.value);
-                localStorage.setItem('scrollSensitivity', elements.scrollSensitivitySlider.value);
-                localStorage.setItem('lineWidth', elements.widthSlider.value);
-                localStorage.setItem('fontSize', elements.fontSizeSlider.value);
-                localStorage.setItem('fontFamily', elements.fontSelect.value);
-                localStorage.setItem('fontColor', elements.colorPicker.value);
-                localStorage.setItem('theme', document.documentElement.getAttribute('data-theme'));
+                const profileKey = `profile${state.currentProfile}`;
+                const settings = {
+                    speed: elements.speedSlider.value,
+                    startDelay: elements.startDelaySlider.value,
+                    endDelay: elements.endDelaySlider.value,
+                    scrollSensitivity: elements.scrollSensitivitySlider.value,
+                    lineWidth: elements.widthSlider.value,
+                    fontSize: elements.fontSizeSlider.value,
+                    fontFamily: elements.fontSelect.value,
+                    fontColor: elements.colorPicker.value,
+                    theme: document.documentElement.getAttribute('data-theme'),
+                    pipBounds: pipBounds || state.pipBounds // Save PiP window position
+                };
+                localStorage.setItem(profileKey, JSON.stringify(settings));
+                localStorage.setItem('currentProfile', state.currentProfile);
             }, 300);
         }
 
@@ -736,19 +789,6 @@
 
                 // Apply transform to move text up
                 elements.textContent.style.transform = `translateY(-${state.scrollPosition}px)`;
-
-                if (state.pipWindow) {
-                    if (state.pipWindow.electron && window.electronAPI) {
-                        // Electron PiP
-                        window.electronAPI.updatePiPScroll(state.scrollPosition);
-                    } else {
-                        // Browser PiP
-                        const pipContent = state.pipWindow.document.querySelector('.pip-window-body .text-content');
-                        if (pipContent) {
-                            pipContent.style.transform = `translateY(-${state.scrollPosition}px)`;
-                        }
-                    }
-                }
             }
             state.animationFrameId = requestAnimationFrame(autoScroll);
         }
@@ -987,7 +1027,10 @@
                 fontSize: elements.textContent.style.fontSize || elements.fontSizeSlider.value + 'px',
                 fontColor: elements.textContent.style.color || elements.colorPicker.value,
                 lineWidth: elements.textContent.style.maxWidth || elements.widthSlider.value + 'ch',
-                theme: document.documentElement.getAttribute('data-theme') || 'dark'
+                theme: document.documentElement.getAttribute('data-theme') || 'dark',
+                scrollPosition: state.scrollPosition, // Include current scroll position
+                speed: state.speed, // Include current speed
+                pipBounds: state.pipBounds // Include saved PiP window position
             };
 
             window.electronAPI.openPiP(data);
@@ -999,7 +1042,11 @@
 
         // Listen for PiP close from Electron
         if (window.electronAPI) {
-            window.electronAPI.onPiPClosed(() => {
+            window.electronAPI.onPiPClosed((bounds) => {
+                // Save the window bounds before closing
+                if (bounds) {
+                    saveSettings(bounds);
+                }
                 state.pipWindow = null;
                 elements.pipButton.textContent = 'Open Picture-in-Picture';
                 elements.pipButton.style.backgroundColor = '';
@@ -1073,10 +1120,35 @@
             }
         });
 
+        // Profile switching
+        function switchProfile(profileNumber) {
+            state.currentProfile = profileNumber;
+            loadSettings();
+
+            // Update active button state
+            document.querySelectorAll('.profile-btn').forEach(btn => {
+                if (parseInt(btn.dataset.profile) === profileNumber) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Profile button event listeners
+        document.querySelectorAll('.profile-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchProfile(parseInt(btn.dataset.profile));
+            });
+        });
+
         // Initialize
         loadSettings();
         autoScroll(); // Start the animation loop
         updatePlaybackUI();
+
+        // Set initial active profile button
+        switchProfile(state.currentProfile);
     </script>
 </body>
 </html>
