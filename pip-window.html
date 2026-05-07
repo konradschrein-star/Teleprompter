@@ -24,8 +24,7 @@
         body {
             background-color: var(--bg-primary);
             color: var(--text-primary);
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             height: 100vh;
             padding: 20px;
         }
@@ -44,10 +43,14 @@
         }
 
         .pip-content {
+            position: relative;
             margin: 0 auto;
             line-height: 1.6;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            overflow-wrap: normal;
+            word-break: keep-all;
+            hyphens: none;
+            will-change: transform;
         }
 
         .playback-indicator {
@@ -233,9 +236,9 @@
         });
 
         // Listen for scroll updates
-        window.electronAPI.onPiPScroll((scrollTop) => {
-            document.body.scrollTop = scrollTop;
-            document.documentElement.scrollTop = scrollTop;
+        window.electronAPI.onPiPScroll((scrollPosition) => {
+            const pipContent = document.getElementById('pipContent');
+            pipContent.style.transform = `translateY(-${scrollPosition}px)`;
         });
 
         // Listen for playback status updates
