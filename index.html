@@ -306,6 +306,25 @@
         <div class="settings-panel">
             <h2>Teleprompter Settings</h2>
 
+            <details class="control-group" style="margin-bottom: 15px;">
+                <summary style="cursor: pointer; font-weight: 600; margin-bottom: 10px;">📖 Quick Guide</summary>
+                <div style="font-size: 12px; line-height: 1.4; color: var(--text-secondary);">
+                    <p><strong>Keyboard Shortcuts:</strong></p>
+                    <ul style="margin: 5px 0 10px 20px;">
+                        <li><strong>Space/C:</strong> Tap to play/pause, hold for 2x speed</li>
+                        <li><strong>W:</strong> Scroll to top</li>
+                        <li><strong>Mouse Wheel:</strong> Manual scroll</li>
+                    </ul>
+                    <p><strong>Controls:</strong></p>
+                    <ul style="margin: 5px 0 10px 20px;">
+                        <li><strong>Start Delay:</strong> Pause before scrolling begins</li>
+                        <li><strong>End Delay:</strong> Pause when reaching the end</li>
+                        <li><strong>Scroll Sensitivity:</strong> Wheel scroll speed</li>
+                    </ul>
+                    <p><strong>Tips:</strong> After manual scrolling, press Space to continue from that position.</p>
+                </div>
+            </details>
+
             <div class="control-group">
                 <label>Load Content</label>
                 <div class="file-drop-zone" id="dropZone">
@@ -323,6 +342,30 @@
                     <span class="range-value" id="speedValue">0.5</span>
                 </label>
                 <input type="range" id="speedSlider" min="0.01" max="5" value="0.5" step="0.01">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Start Delay
+                    <span class="range-value" id="startDelayValue">0.2s</span>
+                </label>
+                <input type="range" id="startDelaySlider" min="0" max="2" value="0.2" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    End Delay
+                    <span class="range-value" id="endDelayValue">0s</span>
+                </label>
+                <input type="range" id="endDelaySlider" min="0" max="5" value="0" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Scroll Sensitivity
+                    <span class="range-value" id="scrollSensitivityValue">1.0</span>
+                </label>
+                <input type="range" id="scrollSensitivitySlider" min="0.1" max="5" value="1.0" step="0.1">
             </div>
 
             <div class="control-group">
@@ -403,7 +446,10 @@
             pipWindow: null,
             spacebarPressed: false,
             userScrolled: false,
-            scrollPosition: 0  // Track transform position in pixels
+            scrollPosition: 0,      // Track transform position in pixels
+            startDelay: 0.2,        // Delay in seconds before playback starts
+            endDelay: 0,            // Delay in seconds at the end
+            scrollSensitivity: 1.0  // Multiplier for wheel scroll speed
         };
 
         // DOM elements
@@ -414,6 +460,12 @@
             errorMessage: document.getElementById('errorMessage'),
             speedSlider: document.getElementById('speedSlider'),
             speedValue: document.getElementById('speedValue'),
+            startDelaySlider: document.getElementById('startDelaySlider'),
+            startDelayValue: document.getElementById('startDelayValue'),
+            endDelaySlider: document.getElementById('endDelaySlider'),
+            endDelayValue: document.getElementById('endDelayValue'),
+            scrollSensitivitySlider: document.getElementById('scrollSensitivitySlider'),
+            scrollSensitivityValue: document.getElementById('scrollSensitivityValue'),
             widthSlider: document.getElementById('widthSlider'),
             widthValue: document.getElementById('widthValue'),
             fontSizeSlider: document.getElementById('fontSizeSlider'),
@@ -431,7 +483,10 @@
         // Load saved settings
         function loadSettings() {
             const settings = {
-                speed: localStorage.getItem('speed') || '2',
+                speed: localStorage.getItem('speed') || '0.5',
+                startDelay: localStorage.getItem('startDelay') || '0.2',
+                endDelay: localStorage.getItem('endDelay') || '0',
+                scrollSensitivity: localStorage.getItem('scrollSensitivity') || '1.0',
                 lineWidth: localStorage.getItem('lineWidth') || '70',
                 fontSize: localStorage.getItem('fontSize') || '48',
                 fontFamily: localStorage.getItem('fontFamily') || "'Roboto', Arial, sans-serif",
@@ -442,6 +497,18 @@
             elements.speedSlider.value = settings.speed;
             elements.speedValue.textContent = settings.speed;
             state.speed = Math.max(0.01, parseFloat(settings.speed) || 0.5);
+
+            elements.startDelaySlider.value = settings.startDelay;
+            elements.startDelayValue.textContent = settings.startDelay + 's';
+            state.startDelay = Math.max(0, parseFloat(settings.startDelay) || 0.2);
+
+            elements.endDelaySlider.value = settings.endDelay;
+            elements.endDelayValue.textContent = settings.endDelay + 's';
+            state.endDelay = Math.max(0, parseFloat(settings.endDelay) || 0);
+
+            elements.scrollSensitivitySlider.value = settings.scrollSensitivity;
+            elements.scrollSensitivityValue.textContent = settings.scrollSensitivity;
+            state.scrollSensitivity = Math.max(0.1, parseFloat(settings.scrollSensitivity) || 1.0);
 
             elements.widthSlider.value = settings.lineWidth;
             elements.widthValue.textContent = settings.lineWidth + 'ch';
@@ -466,6 +533,9 @@
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 localStorage.setItem('speed', elements.speedSlider.value);
+                localStorage.setItem('startDelay', elements.startDelaySlider.value);
+                localStorage.setItem('endDelay', elements.endDelaySlider.value);
+                localStorage.setItem('scrollSensitivity', elements.scrollSensitivitySlider.value);
                 localStorage.setItem('lineWidth', elements.widthSlider.value);
                 localStorage.setItem('fontSize', elements.fontSizeSlider.value);
                 localStorage.setItem('fontFamily', elements.fontSelect.value);
@@ -557,8 +627,26 @@
 
         // Settings controls
         elements.speedSlider.addEventListener('input', (e) => {
-            state.speed = Math.max(0.25, parseFloat(e.target.value) || 2);
+            state.speed = parseFloat(e.target.value);
             elements.speedValue.textContent = e.target.value;
+            saveSettings();
+        });
+
+        elements.startDelaySlider.addEventListener('input', (e) => {
+            state.startDelay = parseFloat(e.target.value);
+            elements.startDelayValue.textContent = e.target.value + 's';
+            saveSettings();
+        });
+
+        elements.endDelaySlider.addEventListener('input', (e) => {
+            state.endDelay = parseFloat(e.target.value);
+            elements.endDelayValue.textContent = e.target.value + 's';
+            saveSettings();
+        });
+
+        elements.scrollSensitivitySlider.addEventListener('input', (e) => {
+            state.scrollSensitivity = parseFloat(e.target.value);
+            elements.scrollSensitivityValue.textContent = e.target.value;
             saveSettings();
         });
 
@@ -667,12 +755,17 @@
 
         function startPlayback() {
             if (!state.isPlaying) {
-                state.isPlaying = true;
+                // Clear any manual scroll flag and timeout to allow playback from new position
                 state.userScrolled = false;
-                updatePlaybackUI();
-                if (!state.animationFrameId) {
-                    autoScroll();
-                }
+                clearTimeout(scrollTimeout);
+
+                // Add configurable delay before starting playback
+                setTimeout(() => {
+                    if (!state.isPlaying) { // Check again in case user stopped during delay
+                        state.isPlaying = true;
+                        updatePlaybackUI();
+                    }
+                }, state.startDelay * 1000); // Convert seconds to milliseconds
             }
         }
 
@@ -793,8 +886,8 @@
         elements.teleprompterDisplay.addEventListener('wheel', (e) => {
             e.preventDefault();
 
-            // Adjust transform position based on wheel delta
-            state.scrollPosition = Math.max(0, state.scrollPosition + e.deltaY);
+            // Adjust transform position based on wheel delta with sensitivity
+            state.scrollPosition = Math.max(0, state.scrollPosition + (e.deltaY * state.scrollSensitivity));
             elements.textContent.style.transform = `translateY(-${state.scrollPosition}px)`;
 
             state.userScrolled = true;
