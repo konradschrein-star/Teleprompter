@@ -186,15 +186,15 @@
         .display-area {
             flex: 1;
             display: flex;
+            flex-direction: column;
             overflow: hidden;
             position: relative;
         }
 
         .teleprompter-display {
-            width: 100%;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
             padding: 40px;
         }
 
@@ -216,6 +216,7 @@
         }
 
         .text-content {
+            position: relative;
             max-width: 70ch;
             margin: 0 auto;
             font-size: 48px;
@@ -223,7 +224,10 @@
             font-family: 'Roboto', Arial, sans-serif;
             color: var(--text-primary);
             white-space: pre-wrap;
-            word-wrap: break-word;
+            overflow-wrap: normal;
+            word-break: keep-all;
+            hyphens: none;
+            will-change: transform;
         }
 
         .playback-indicator {
@@ -316,9 +320,9 @@
             <div class="control-group">
                 <label>
                     Scroll Speed
-                    <span class="range-value" id="speedValue">2</span>
+                    <span class="range-value" id="speedValue">0.5</span>
                 </label>
-                <input type="range" id="speedSlider" min="0.25" max="20" value="2" step="0.25">
+                <input type="range" id="speedSlider" min="0.01" max="5" value="0.5" step="0.01">
             </div>
 
             <div class="control-group">
@@ -393,12 +397,13 @@
         // State management
         const state = {
             isPlaying: false,
-            speed: 2,
+            speed: 0.5,
             speedMultiplier: 1,
             animationFrameId: null,
             pipWindow: null,
             spacebarPressed: false,
-            userScrolled: false
+            userScrolled: false,
+            scrollPosition: 0  // Track transform position in pixels
         };
 
         // DOM elements
@@ -436,8 +441,7 @@
 
             elements.speedSlider.value = settings.speed;
             elements.speedValue.textContent = settings.speed;
-            state.speed = Math.max(0.25, parseFloat(settings.speed) || 2);
-            console.log('Speed initialized to:', state.speed);
+            state.speed = Math.max(0.01, parseFloat(settings.speed) || 0.5);
 
             elements.widthSlider.value = settings.lineWidth;
             elements.widthValue.textContent = settings.lineWidth + 'ch';
@@ -555,7 +559,6 @@
         elements.speedSlider.addEventListener('input', (e) => {
             state.speed = Math.max(0.25, parseFloat(e.target.value) || 2);
             elements.speedValue.textContent = e.target.value;
-            console.log('Speed changed to:', state.speed);
             saveSettings();
         });
 
@@ -641,17 +644,20 @@
         function autoScroll() {
             if (state.isPlaying && !state.userScrolled) {
                 const scrollAmount = state.speed * state.speedMultiplier;
-                elements.teleprompterDisplay.scrollTop += scrollAmount;
+                state.scrollPosition += scrollAmount;
+
+                // Apply transform to move text up
+                elements.textContent.style.transform = `translateY(-${state.scrollPosition}px)`;
 
                 if (state.pipWindow) {
                     if (state.pipWindow.electron && window.electronAPI) {
                         // Electron PiP
-                        window.electronAPI.updatePiPScroll(elements.teleprompterDisplay.scrollTop);
+                        window.electronAPI.updatePiPScroll(state.scrollPosition);
                     } else {
                         // Browser PiP
-                        const pipContent = state.pipWindow.document.querySelector('.pip-window-body');
+                        const pipContent = state.pipWindow.document.querySelector('.pip-window-body .text-content');
                         if (pipContent) {
-                            pipContent.scrollTop = elements.teleprompterDisplay.scrollTop;
+                            pipContent.style.transform = `translateY(-${state.scrollPosition}px)`;
                         }
                     }
                 }
@@ -660,16 +666,11 @@
         }
 
         function startPlayback() {
-            console.log('startPlayback called, isPlaying:', state.isPlaying, 'speed:', state.speed, 'userScrolled:', state.userScrolled);
-            console.log('Element:', elements.teleprompterDisplay);
-            console.log('ScrollHeight:', elements.teleprompterDisplay.scrollHeight, 'ClientHeight:', elements.teleprompterDisplay.clientHeight);
-            console.log('Is scrollable?', elements.teleprompterDisplay.scrollHeight > elements.teleprompterDisplay.clientHeight);
             if (!state.isPlaying) {
                 state.isPlaying = true;
                 state.userScrolled = false;
                 updatePlaybackUI();
                 if (!state.animationFrameId) {
-                    console.log('Starting autoScroll loop');
                     autoScroll();
                 }
             }
@@ -698,7 +699,8 @@
             // W key - scroll to top
             if (e.key.toLowerCase() === 'w' && !e.repeat) {
                 e.preventDefault();
-                elements.teleprompterDisplay.scrollTop = 0;
+                state.scrollPosition = 0;
+                elements.textContent.style.transform = 'translateY(0)';
                 if (state.pipWindow && state.pipWindow.electron && window.electronAPI) {
                     window.electronAPI.updatePiPScroll(0);
                 }
@@ -731,13 +733,9 @@
                 clearTimeout(keyHoldTimer);
 
                 if (keyWasHeld) {
-                    // Was held - return to 1x speed and restore previous state
+                    // Was held - return to 1x speed and keep playing
                     state.speedMultiplier = 1;
-                    if (!wasPlayingBeforeHold) {
-                        stopPlayback();
-                    } else {
-                        updatePlaybackUI();
-                    }
+                    updatePlaybackUI();
                     keyWasHeld = false;
                 } else {
                     // Was a tap - toggle play/pause
@@ -790,9 +788,15 @@
             }
         }
 
-        // Manual scroll detection
+        // Manual scroll detection with wheel
         let scrollTimeout;
         elements.teleprompterDisplay.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            // Adjust transform position based on wheel delta
+            state.scrollPosition = Math.max(0, state.scrollPosition + e.deltaY);
+            elements.textContent.style.transform = `translateY(-${state.scrollPosition}px)`;
+
             state.userScrolled = true;
             stopPlayback();
 
